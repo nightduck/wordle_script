@@ -2,27 +2,32 @@ import numpy as np
 import math
 import random
 
-EXTENDED = False
+EXTENDED = True
 HARD_MODE = False
 
 guessing_list = []
-answer_list = []
+answer_list = set()
 
 class DecisionTreeNode:
     def __init__(word, bins):
         self.word = word
         self.masks = bins
 
-with open("wordle_dictionary.txt", 'r') as fin:
-    for line in fin:
-        answer_list.append(line[:5])
 
 if EXTENDED:
-    with open("wordle_ext_dictionary.txt", 'r') as fin:
+    with open("wordle_occurrence_list.txt", 'r') as fin:
+        for line in fin:
+            w, o = line.split(' ')
+            guessing_list.append(w)
+            answer_list.add((w, int(o)))
+else:
+    with open("wordle_dictionary.txt", 'r') as fin:
         for line in fin:
             guessing_list.append(line[:5])
-else:
-    guessing_list = answer_list.copy()
+
+    size = len(guessing_list)
+    answer_list = set([(w, 1) for w in guessing_list])
+
 
 def get_mask(guess, answer):
     # Mask defaults to all wrong and convert strings to lists
@@ -62,65 +67,67 @@ def compute_entropy(int_list):
 
 def make_guess(guessing_list, answer_list):
     # Restructure guessing list as dictionary, with words mapping to sub-dictionaries, explained later
-    guess_bins = {}
     max_entropy = -1
     best_guess = "idk"
-    remaining_entropy = math.log(len(answer_list))
+    best_bins = {}
+    remaining_entropy = compute_entropy([p for a, p in answer_list])
 
     if len(answer_list) == 1:
-        a = answer_list[0]
-        guess_bins[a] = {get_mask(a,a) : [a]}
-        return a, guess_bins
+        a, o = answer_list[0]
+        best_bins = {get_mask(a,a) : [a]}
+        return a, best_bins
 
     for guess in guessing_list:
         bins = {}
-        for a in answer_list:
+        for a, p in answer_list:
             mask = get_mask(guess, a)
             if not mask in bins.keys():
-                bins[mask] = [a]
+                bins[mask] = [(a, p)]
             else:
-                bins[mask].append(a)
+                bins[mask].append((a, p))
 
         # Replace best guess if there's a word with better entropy.a
         # Or: if there's a word with less entropy, but enough to ascertain the answer on the next
         #    guess, and that's in the answer list, use that instead. Maybe we'll get lucky
-        new_entropy = compute_entropy([len(l) for l in bins.values()])
-        if new_entropy > max_entropy or (guess in answer_list and best_guess not in answer_list and new_entropy >= remaining_entropy):
+        new_entropy = compute_entropy([sum([p for a, p in mask_list]) for mask_list in bins.values()])
+        if new_entropy > max_entropy or (guess in [a for a, p in answer_list]
+                and best_guess not in [a for a, p in answer_list]
+                and new_entropy >= remaining_entropy):
             max_entropy = new_entropy
             best_guess = guess
-            guess_bins[guess] = bins
+            best_bins = bins
 
-    return best_guess, guess_bins[best_guess]
+    return best_guess, best_bins
 
 # Start guess of base list: raise, H = 4.074
 # Start guess of exte list: soare, H = 4.079
 
-def guesses_to_get(answer, guessing_list, answer_list):
-    guesses = 0
-    while True:
-        if guesses == 0:
-            if EXTENDED:
-                best_guess = 'soare'
-            else:
-                best_guess = 'raise'
-        else:
-            best_guess, bins = make_guess(guessing_list, answer_list)
+# def guesses_to_get(answer, guessing_list, answer_list):
+#     guesses = 0
+#     while True:
+#         if guesses == 0:
+#             if EXTENDED:
+#                 best_guess = 'soare'
+#             else:
+#                 best_guess = 'raise'
+#         else:
+#             best_guess, bins = make_guess(guessing_list, answer_list)
 
-        guesses += 1
+#         guesses += 1
 
-        if best_guess == answer:
-            return guesses
+#         if best_guess == answer:
+#             return guesses
         
-        mask = get_mask(best_guess, answer)
+#         mask = get_mask(best_guess, answer)
 
-        answer_list = list(filter(lambda a : get_mask(best_guess, a) == mask, answer_list))
+#         answer_list = list(filter(lambda a : get_mask(best_guess, a) == mask, answer_list))
         
-        if HARD_MODE:
-            guessing_list = answer_list     # Only guess things that might actually be the answer now (hard mode)
+#         if HARD_MODE:
+#             guessing_list = answer_list     # Only guess things that might actually be the answer now (hard mode)
             
-        if len(answer_list) == 0:
-            print("One of us messed up somewhere cause there's no more possible words")
-            return -1
+#         if len(answer_list) == 0:
+#             print("One of us messed up somewhere cause there's no more possible words")
+#             return -1
 
 def build_tree(guessing_list, answer_list):
     # Define tree here
@@ -131,14 +138,8 @@ def build_tree(guessing_list, answer_list):
         # If we haven't guessed the answer, start making calls to make_guess(guessing_list, temp_list)
         # and build out the tree using the resulting best_guess and the previous mask
 
-
-# for w in answer_list:
-#     guesses = guesses_to_get(w, guessing_list, answer_list)
-#     print(w , guesses)
-# exit()
-
 if EXTENDED:
-    first_guess = 'soare'
+    first_guess = 'tares'
 else:
     first_guess = 'raise'
 
@@ -148,13 +149,13 @@ else:
 print('Try', first_guess)
 mask = input("What was the result? (in 0,1,2s): ")
 mask = sum([(3**i)*int(v) for i,v in enumerate(mask)])
-answer_list = list(filter(lambda a : get_mask(first_guess, a) == mask, answer_list))
+answer_list = list(filter(lambda a : get_mask(first_guess, a[0]) == mask, answer_list))
 print("Possible words:", len(answer_list))
 if len(answer_list) < 20:
     print(answer_list)
 
 if HARD_MODE:
-    guessing_list = answer_list
+    guessing_list = [a[0] for a in answer_list]
 
 stop = False
 while not stop:
