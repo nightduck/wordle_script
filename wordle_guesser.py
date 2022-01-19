@@ -74,7 +74,7 @@ def make_guess(guessing_list, answer_list):
 
     if len(answer_list) == 1:
         a, o = answer_list[0]
-        best_bins = {get_mask(a,a) : [a]}
+        best_bins = {get_mask(a[0],a) : [a]}
         return a, best_bins
 
     for guess in guessing_list:
@@ -171,7 +171,7 @@ while not stop:
         print(answer_list)
     
     if HARD_MODE:
-        guessing_list = answer_list     # Only guess things that might actually be the answer now (hard mode)
+        guessing_list = [a[0] for a in answer_list]     # Only guess things that might actually be the answer now (hard mode)
          
     if len(answer_list) == 0:
         print("One of us messed up somewhere cause there's no more possible words")
