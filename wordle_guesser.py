@@ -1,17 +1,25 @@
 import numpy as np
 import math
 import random
+import json
 
-EXTENDED = True
+EXTENDED = False
 HARD_MODE = False
 
 guessing_list = []
 answer_list = set()
 
 class DecisionTreeNode:
-    def __init__(word, bins):
+    def __init__(self, word, bins):
         self.word = word
         self.masks = bins
+
+    def get_json(self):
+        root = {"guess" : self.word, "squares" : []}
+        for k, v in self.masks.items():
+            root["squares"][k] = v.get_json()
+
+        return root
 
 
 if EXTENDED:
@@ -52,7 +60,8 @@ def get_mask(guess, answer):
             pass
     
     # Convert to base3 number (big-endian)
-    return sum([(3**i)*v for i,v in enumerate(mask)])
+    mask.reverse()
+    return sum([(10**i)*v for i,v in enumerate(mask)])
     #return "".join([str(x) for x in mask])
 
 def compute_entropy(int_list):
@@ -127,13 +136,50 @@ def make_guess(guessing_list, answer_list):
 #             return -1
 
 def build_tree(guessing_list, answer_list):
+    first_guess = make_guess(guessing_list, answer_list)
+    root = DecisionTreeNode(first_guess, {})   # It'll be raise
+
+
     # Define tree here
-    for a in answer_list:
+    for answer, p in answer_list:
+        print("Answer is", answer, end=': ')
+
         temp_list = answer_list
+        guess = root
+        print(guess.word, end=' ')
+
         # Lookup in tree, going as far down as we can go
-        
+        m = get_mask(guess.word, answer)
+        while (m in guess.masks):
+            temp_list = list(filter(lambda a : get_mask(guess.word, a[0]) == m, temp_list))
+            guess = guess.masks[m]
+            print(guess.word, end=' ')
+            m = get_mask(guess.word, answer)
+
+        if m == 22222:
+            continue
+
         # If we haven't guessed the answer, start making calls to make_guess(guessing_list, temp_list)
         # and build out the tree using the resulting best_guess and the previous mask
+        while m != 22222:
+            temp_list = list(filter(lambda a : get_mask(guess.word, a[0]) == m, temp_list))
+
+            best_guess = make_guess(guessing_list, temp_list)
+            guess.masks[m] = DecisionTreeNode(best_guess, {})
+            guess = guess.masks[m]
+            print(guess.word, end=' ')
+
+            m = get_mask(guess.word, answer)    # guess.word == best_guess
+        
+        print(flush=True)
+
+    return root.get_json()
+
+dt = build_tree(guessing_list, answer_list)
+json_dump = json.dumps(dt)
+with open("answers_decision_tree.json", 'w') as fout:
+    fout.write(json_dump)
+exit()
 
 if EXTENDED:
     first_guess = 'tares'
