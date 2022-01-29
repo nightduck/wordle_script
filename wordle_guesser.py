@@ -69,13 +69,11 @@ def make_guess(guessing_list, answer_list):
     # Restructure guessing list as dictionary, with words mapping to sub-dictionaries, explained later
     max_entropy = -1
     best_guess = "idk"
-    best_bins = {}
     remaining_entropy = compute_entropy([p for a, p in answer_list])
 
     if len(answer_list) == 1:
         a, o = answer_list[0]
-        best_bins = {get_mask(a[0],a) : [a]}
-        return a, best_bins
+        return a
 
     for guess in guessing_list:
         bins = {}
@@ -86,7 +84,7 @@ def make_guess(guessing_list, answer_list):
             else:
                 bins[mask].append((a, p))
 
-        # Replace best guess if there's a word with better entropy.a
+        # Replace best guess if there's a word with better entropy
         # Or: if there's a word with less entropy, but enough to ascertain the answer on the next
         #    guess, and that's in the answer list, use that instead. Maybe we'll get lucky
         new_entropy = compute_entropy([sum([p for a, p in mask_list]) for mask_list in bins.values()])
@@ -95,9 +93,8 @@ def make_guess(guessing_list, answer_list):
                 and new_entropy >= remaining_entropy):
             max_entropy = new_entropy
             best_guess = guess
-            best_bins = bins
 
-    return best_guess, best_bins
+    return best_guess
 
 # Start guess of base list: raise, H = 4.074
 # Start guess of exte list: soare, H = 4.079
@@ -159,13 +156,13 @@ if HARD_MODE:
 
 stop = False
 while not stop:
-    best_guess, bins = make_guess(guessing_list, answer_list)
+    best_guess = make_guess(guessing_list, answer_list)
     print('Try', best_guess)
     
     mask = input("What was the result? (in 0,1,2s): ")
     
     mask = sum([(3**i)*int(v) for i,v in enumerate(mask)])
-    answer_list = bins[mask]
+    answer_list = list(filter(lambda a : get_mask(best_guess, a[0]) == mask, answer_list))
     print("Possible words:", len(answer_list))
     if len(answer_list) < 20:
         print(answer_list)
