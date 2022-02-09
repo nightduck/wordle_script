@@ -14,10 +14,10 @@ class DecisionTreeNode:
         self.word = word
         self.masks = bins
 
-    def get_json(self):
-        root = {"guess" : self.word, "squares" : []}
+    def get_json(self, squares = 0):
+        root = {"guess" : self.word, "squares" : squares, "children" : []}
         for k, v in self.masks.items():
-            root["squares"][k] = v.get_json()
+            root["children"].append(v.get_json(k))
 
         return root
 
@@ -177,7 +177,7 @@ def build_tree(guessing_list, answer_list):
 
 dt = build_tree(guessing_list, answer_list)
 json_dump = json.dumps(dt)
-with open("answers_decision_tree.json", 'w') as fout:
+with open("answers_ext_decision_tree.json", 'w') as fout:
     fout.write(json_dump)
 exit()
 
